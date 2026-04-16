@@ -10,9 +10,9 @@ DATA_FILE = "manutencao_veiculos.csv"
 # ================= FUNÇÕES =================
 def carregar_dados():
     if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE)
+        df = pd.read_csv(DATA_FILE, dtype=str)
     else:
-        return pd.DataFrame(columns=[
+        df = pd.DataFrame(columns=[
             "Data",
             "KM Atual",
             "Peça Trocada",
@@ -23,7 +23,13 @@ def carregar_dados():
             "Observação"
         ])
 
+    # 🔥 força tudo como string (resolve o erro)
+    df = df.astype(str)
+
+    return df
+
 def salvar_dados(df):
+    df = df.astype(str)
     df.to_csv(DATA_FILE, index=False)
 
 # ================= APP =================
@@ -55,9 +61,9 @@ if menu == "Cadastrar":
         submit = st.form_submit_button("Salvar")
 
         if submit:
-            novo = pd.DataFrame([[str(data), km, peca, valor_peca, local, mao_obra, proxima, obs]],
-                                columns=df.columns)
-
+            novo = pd.DataFrame([[str(data), str(km), str(peca), str(valor_peca), str(local), str(mao_obra), str(proxima), str(obs)]],
+                    columns=df.columns)
+            
             df = pd.concat([df, novo], ignore_index=True)
             salvar_dados(df)
 
@@ -108,11 +114,11 @@ if menu == "Consultar / Editar":
         with col_btn1:
             if st.button("💾 Atualizar"):
                 df.at[id_selecionado, "Data"] = str(data)
-                df.at[id_selecionado, "KM Atual"] = int(km)
+                df.at[id_selecionado, "KM Atual"] = str(km)
                 df.at[id_selecionado, "Peça Trocada"] = str(peca)
-                df.at[id_selecionado, "Valor Peça"] = float(valor_peca)
+                df.at[id_selecionado, "Valor Peça"] = str(valor_peca)
                 df.at[id_selecionado, "Local"] = str(local)
-                df.at[id_selecionado, "Mão de Obra"] = float(mao)
+                df.at[id_selecionado, "Mão de Obra"] = str(mao)
                 df.at[id_selecionado, "Próxima Troca"] = str(proxima)
                 df.at[id_selecionado, "Observação"] = str(obs)
 
@@ -131,8 +137,8 @@ if menu == "Consultar / Editar":
         # ================= RESUMO =================
         st.subheader("📊 Resumo")
 
-        total_pecas = df["Valor Peça"].astype(float).sum()
-        total_mao = df["Mão de Obra"].astype(float).sum()
+        total_pecas = pd.to_numeric(df["Valor Peça"], errors='coerce').sum()
+        total_mao = pd.to_numeric(df["Mão de Obra"], errors='coerce').sum()
         total = total_pecas + total_mao
 
         col1, col2, col3 = st.columns(3)
