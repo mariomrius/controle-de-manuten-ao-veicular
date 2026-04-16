@@ -8,7 +8,6 @@ st.set_page_config(page_title="Controle de Manutenção Veicular", layout="wide"
 DATA_FILE = "manutencao_veiculos.csv"
 
 # ================= FUNÇÕES =================
-
 def carregar_dados():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
@@ -24,13 +23,10 @@ def carregar_dados():
             "Observação"
         ])
 
-
 def salvar_dados(df):
     df.to_csv(DATA_FILE, index=False)
 
-
 # ================= APP =================
-
 df = carregar_dados()
 
 st.title("🚗 Controle de Manutenção Veicular")
@@ -53,19 +49,20 @@ if menu == "Cadastrar":
         with col2:
             local = st.text_input("Onde foi adquirida")
             mao_obra = st.number_input("Valor da Mão de Obra (R$)", min_value=0.0, format="%.2f")
-            proxima = st.text_input("Previsão Próxima Troca")
+            proxima = st.text_input("Próxima Troca")
             obs = st.text_area("Observação")
 
         submit = st.form_submit_button("Salvar")
 
         if submit:
-            novo = pd.DataFrame([[data, km, peca, valor_peca, local, mao_obra, proxima, obs]],
+            novo = pd.DataFrame([[str(data), km, peca, valor_peca, local, mao_obra, proxima, obs]],
                                 columns=df.columns)
 
             df = pd.concat([df, novo], ignore_index=True)
             salvar_dados(df)
 
             st.success("Registro salvo com sucesso!")
+            st.rerun()
 
 # ================= CONSULTA / EDIÇÃO =================
 if menu == "Consultar / Editar":
@@ -74,63 +71,81 @@ if menu == "Consultar / Editar":
     if df.empty:
         st.warning("Nenhum registro encontrado.")
     else:
-        df_reset = df.reset_index()
-        df_reset.rename(columns={"index": "ID"}, inplace=True)
+        df = df.reset_index(drop=True)
+        df_exibir = df.copy()
+        df_exibir["ID"] = df_exibir.index
 
-        st.dataframe(df_reset, use_container_width=True)
+        st.dataframe(df_exibir, use_container_width=True)
 
-        st.subheader("✏️ Editar ou Excluir Registro")
+        st.subheader("✏️ Editar ou Excluir")
 
-        id_selecionado = st.number_input("Digite o ID do registro", min_value=0, max_value=len(df_reset)-1, step=1)
+        id_selecionado = st.number_input(
+            "Digite o ID", 
+            min_value=0, 
+            max_value=len(df_exibir)-1, 
+            step=1
+        )
 
-        if id_selecionado is not None and id_selecionado < len(df):
-            registro = df.loc[id_selecionado]
+        registro = df.loc[id_selecionado]
 
-            col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-            with col1:
-                data = st.date_input("Data", value=pd.to_datetime(registro["Data"]))
-                km = st.number_input("KM Atual", value=int(registro["KM Atual"]))
-                peca = st.text_input("Peça", value=registro["Peça Trocada"])
-                valor_peca = st.number_input("Valor Peça", value=float(registro["Valor Peça"]))
+        with col1:
+            data = st.date_input("Data", value=pd.to_datetime(registro["Data"]))
+            km = st.number_input("KM Atual", value=int(registro["KM Atual"]))
+            peca = st.text_input("Peça", value=registro["Peça Trocada"])
+            valor_peca = st.number_input("Valor Peça", value=float(registro["Valor Peça"]))
 
-            with col2:
-                local = st.text_input("Local", value=registro["Local"])
-                mao = st.number_input("Mão de Obra", value=float(registro["Mão de Obra"]))
-                proxima = st.text_input("Próxima Troca", value=registro["Próxima Troca"])
-                obs = st.text_area("Observação", value=registro["Observação"])
+        with col2:
+            local = st.text_input("Local", value=registro["Local"])
+            mao = st.number_input("Mão de Obra", value=float(registro["Mão de Obra"]))
+            proxima = st.text_input("Próxima Troca", value=registro["Próxima Troca"])
+            obs = st.text_area("Observação", value=registro["Observação"])
 
-            col_btn1, col_btn2 = st.columns(2)
+        col_btn1, col_btn2 = st.columns(2)
 
-            with col_btn1:
-                if st.button("💾 Atualizar"):
-                    df.loc[id_selecionado] = [data, km, peca, valor_peca, local, mao, proxima, obs]
-                    salvar_dados(df)
-                    st.success("Registro atualizado com sucesso!")
+        # ✅ ATUALIZAR (CORRIGIDO)
+        with col_btn1:
+            if st.button("💾 Atualizar"):
+                df.at[id_selecionado, "Data"] = str(data)
+                df.at[id_selecionado, "KM Atual"] = int(km)
+                df.at[id_selecionado, "Peça Trocada"] = str(peca)
+                df.at[id_selecionado, "Valor Peça"] = float(valor_peca)
+                df.at[id_selecionado, "Local"] = str(local)
+                df.at[id_selecionado, "Mão de Obra"] = float(mao)
+                df.at[id_selecionado, "Próxima Troca"] = str(proxima)
+                df.at[id_selecionado, "Observação"] = str(obs)
 
-            with col_btn2:
-                if st.button("🗑️ Excluir"):
-                    df = df.drop(id_selecionado).reset_index(drop=True)
-                    salvar_dados(df)
-                    st.success("Registro excluído com sucesso!")
+                salvar_dados(df)
+                st.success("Atualizado com sucesso!")
+                st.rerun()
 
-        # RESUMO
+        # ✅ EXCLUIR (CORRIGIDO)
+        with col_btn2:
+            if st.button("🗑️ Excluir"):
+                df = df.drop(id_selecionado).reset_index(drop=True)
+                salvar_dados(df)
+                st.success("Excluído com sucesso!")
+                st.rerun()
+
+        # ================= RESUMO =================
         st.subheader("📊 Resumo")
-        total_pecas = df["Valor Peça"].sum()
-        total_mao_obra = df["Mão de Obra"].sum()
-        total_geral = total_pecas + total_mao_obra
+
+        total_pecas = df["Valor Peça"].astype(float).sum()
+        total_mao = df["Mão de Obra"].astype(float).sum()
+        total = total_pecas + total_mao
 
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Peças", f"R$ {total_pecas:.2f}")
-        col2.metric("Total Mão de Obra", f"R$ {total_mao_obra:.2f}")
-        col3.metric("Total Geral", f"R$ {total_geral:.2f}")
+        col2.metric("Mão de Obra", f"R$ {total_mao:.2f}")
+        col3.metric("Total Geral", f"R$ {total:.2f}")
 
-        # DOWNLOAD
+        # ================= DOWNLOAD =================
         st.download_button(
-            label="📥 Baixar dados em CSV",
-            data=df.to_csv(index=False),
-            file_name="manutencao_veiculos.csv",
-            mime="text/csv"
+            "📥 Baixar CSV",
+            df.to_csv(index=False),
+            "manutencao_veiculos.csv",
+            "text/csv"
         )
 
-st.sidebar.info("App com edição e exclusão de registros")
+st.sidebar.info("Sistema com edição e exclusão funcionando")
